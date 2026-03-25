@@ -1,11 +1,15 @@
 import type { Brand, Creator, Project, TikTokAccount } from "@/lib/types";
 
-/** Gabungkan baris workspace dengan entitas dari Data settings (id unik, prioritas workspace). */
+/**
+ * Gabungkan workspace Supabase dengan Data settings (localStorage).
+ * Untuk id yang sama, isi Data settings menang — supaya dropdown Submit Targets
+ * selalu mengikuti apa yang baru disimpan di Data settings.
+ */
 export function mergeById<T extends { id: string }>(fromDb: T[], fromSettings: T[]): T[] {
   const map = new Map<string, T>();
   for (const x of fromDb) map.set(x.id, x);
   for (const x of fromSettings) {
-    if (!map.has(x.id)) map.set(x.id, x);
+    map.set(x.id, x);
   }
   return [...map.values()];
 }

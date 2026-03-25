@@ -2,6 +2,10 @@
 
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  TABLE_CHIP_OPTIONS,
+  TABLE_SEGMENT_ALL_ID,
+} from "@/lib/dashboard/table-segments";
 import type { User } from "@supabase/supabase-js";
 import { CreatorDetailDrawer } from "@/components/dashboard/CreatorDetailDrawer";
 import { DataSettingsModal } from "@/components/dashboard/DataSettingsModal";
@@ -71,7 +75,6 @@ function CreatorDashboardInner({
     brands,
     tiktokAccounts,
     organizations,
-    defaultBasePayByType,
     selectedMonth,
     setSelectedMonth,
     filters,
@@ -85,7 +88,6 @@ function CreatorDashboardInner({
     handleSubmitTargets,
     loading,
     overviewStats,
-    needsSeed,
     seedIfEmpty,
     reload,
   } = useCreatorDashboard();
@@ -110,6 +112,18 @@ function CreatorDashboardInner({
     () => mergeTikTokAccounts(tiktokAccounts, formSettingsStored.tiktokAccounts),
     [tiktokAccounts, formSettingsStored.tiktokAccounts],
   );
+
+  useEffect(() => {
+    const ok = TABLE_CHIP_OPTIONS.some((s) => s.id === quickFilter);
+    if (!ok) setQuickFilter(TABLE_SEGMENT_ALL_ID);
+  }, [quickFilter, setQuickFilter]);
+
+  /** Banner demo hanya jika tidak ada creator/project/TikTok sama sekali (workspace + Data settings). */
+  const showSeedBanner =
+    !loading &&
+    mergedCreators.length === 0 &&
+    mergedProjects.length === 0 &&
+    mergedTiktok.length === 0;
 
   const [targetsModalOpen, setTargetsModalOpen] = useState(false);
   const [dataSettingsOpen, setDataSettingsOpen] = useState(false);
@@ -175,7 +189,7 @@ function CreatorDashboardInner({
             onSignOut={onSignOut}
           />
 
-          {needsSeed ? (
+          {showSeedBanner ? (
             <div className="flex flex-col gap-3 rounded-2xl border border-neon-purple/30 bg-neon-purple/10 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-sm text-foreground/90">
                 Belum ada data creator / target di workspace bersama. Muat contoh
@@ -192,7 +206,11 @@ function CreatorDashboardInner({
             </div>
           ) : null}
 
-          <QuickFilterChips value={quickFilter} onChange={setQuickFilter} />
+          <QuickFilterChips
+            segments={TABLE_CHIP_OPTIONS}
+            value={quickFilter}
+            onChange={setQuickFilter}
+          />
 
           <PerformanceTable
             creators={mergedCreators}
@@ -216,9 +234,10 @@ function CreatorDashboardInner({
             onOpenChange={setTargetsModalOpen}
             selectedMonth={selectedMonth}
             creators={mergedCreators}
+            brands={mergedBrands}
             projects={mergedProjects}
             tiktokAccounts={mergedTiktok}
-            defaultBasePayByType={defaultBasePayByType}
+            tableSegments={TABLE_CHIP_OPTIONS}
             onSubmitTargets={handleSubmitTargets}
           />
 

@@ -1,23 +1,23 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useSyncExternalStore } from "react";
 import {
-  emptyStoredFormEntities,
-  loadStoredFormEntities,
+  getServerStoredFormSnapshot,
+  getStoredFormEntitiesSnapshot,
   saveStoredFormEntities,
+  subscribeStoredFormEntities,
   type StoredFormEntities,
 } from "@/lib/dashboard/form-settings-storage";
 
 export function useFormSettings() {
-  const [stored, setStored] = useState<StoredFormEntities>(emptyStoredFormEntities);
-
-  useEffect(() => {
-    setStored(loadStoredFormEntities());
-  }, []);
+  const stored = useSyncExternalStore(
+    subscribeStoredFormEntities,
+    getStoredFormEntitiesSnapshot,
+    getServerStoredFormSnapshot,
+  );
 
   const persist = useCallback((next: StoredFormEntities) => {
     saveStoredFormEntities(next);
-    setStored(next);
   }, []);
 
   return { stored, persist };

@@ -1,6 +1,14 @@
--- Run this in Supabase SQL Editor (or supabase db push) for project dnphxqaqlyniobnlicfx
--- https://supabase.com/dashboard/project/dnphxqaqlyniobnlicfx/sql
+-- =============================================================================
+-- TNC Ternak — terapkan SEMUA migrasi workspace (Postgres + RLS bersama + kolom brand)
+-- =============================================================================
+-- Pakai file ini jika project Supabase MASIH KOSONG (belum pernah jalan 001).
+-- Jika 001/002 sudah pernah dijalankan, jangan jalankan utuh — gunakan file
+-- per nomor yang belum (mis. hanya 003_brands_table_segment.sql).
+-- Setelah sukses, di SQL Editor jalankan juga:
+--   notify pgrst, 'reload schema';
+-- =============================================================================
 
+-- ----- 001_dashboard_schema.sql -----
 create extension if not exists "pgcrypto";
 
 create table if not exists public.profiles (
@@ -114,7 +122,6 @@ create policy "campaigns_all_own" on public.campaign_objectives for all using (a
 create policy "tiktok_all_own" on public.tiktok_accounts for all using (auth.uid() = user_id);
 create policy "targets_all_own" on public.creator_targets for all using (auth.uid() = user_id);
 
--- Auto-create profile on signup
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
@@ -136,3 +143,95 @@ drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure public.handle_new_user();
+
+-- ----- 002_shared_workspace_rls.sql -----
+begin;
+
+drop policy if exists "orgs_all_own" on public.organizations;
+drop policy if exists "brands_all_own" on public.brands;
+drop policy if exists "projects_all_own" on public.projects;
+drop policy if exists "creators_all_own" on public.creators;
+drop policy if exists "campaigns_all_own" on public.campaign_objectives;
+drop policy if exists "tiktok_all_own" on public.tiktok_accounts;
+drop policy if exists "targets_all_own" on public.creator_targets;
+
+alter table public.organizations drop constraint if exists organizations_user_id_fkey;
+alter table public.brands drop constraint if exists brands_user_id_fkey;
+alter table public.projects drop constraint if exists projects_user_id_fkey;
+alter table public.creators drop constraint if exists creators_user_id_fkey;
+alter table public.campaign_objectives drop constraint if exists campaign_objectives_user_id_fkey;
+alter table public.tiktok_accounts drop constraint if exists tiktok_accounts_user_id_fkey;
+alter table public.creator_targets drop constraint if exists creator_targets_user_id_fkey;
+
+update public.organizations set user_id = '00000000-0000-0000-0000-000000000001'::uuid;
+update public.brands set user_id = '00000000-0000-0000-0000-000000000001'::uuid;
+update public.projects set user_id = '00000000-0000-0000-0000-000000000001'::uuid;
+update public.creators set user_id = '00000000-0000-0000-0000-000000000001'::uuid;
+update public.campaign_objectives set user_id = '00000000-0000-0000-0000-000000000001'::uuid;
+update public.tiktok_accounts set user_id = '00000000-0000-0000-0000-000000000001'::uuid;
+update public.creator_targets set user_id = '00000000-0000-0000-0000-000000000001'::uuid;
+
+create policy "orgs_shared_auth"
+  on public.organizations for all to authenticated using (true) with check (true);
+
+create policy "brands_shared_auth"
+  on public.brands for all to authenticated using (true) with check (true);
+
+create policy "projects_shared_auth"
+  on public.projects for all to authenticated using (true) with check (true);
+
+create policy "creators_shared_auth"
+  on public.creators for all to authenticated using (true) with check (true);
+
+create policy "campaigns_shared_auth"
+  on public.campaign_objectives for all to authenticated using (true) with check (true);
+
+create policy "tiktok_shared_auth"
+  on public.tiktok_accounts for all to authenticated using (true) with check (true);
+
+create policy "targets_shared_auth"
+  on public.creator_targets for all to authenticated using (true) with check (true);
+
+commit;
+
+-- ----- 003_brands_table_segment.sql (idempotent untuk DB lama tanpa kolom) -----
+alter table public.brands
+  add column if not exists table_segment text;
+
+update public.brands
+set table_segment = 'tnc'
+where table_segment is null;
+
+alter table public.brands
+  drop constraint if exists brands_table_segment_check;
+
+alter table public.brands
+  add constraint brands_table_segment_check
+  check (table_segment in ('tnc', 'folo'));
+
+alter table public.brands
+  alter column table_segment set not null;
+
+comment on column public.brands.table_segment is 'Segment chip: tnc (TNC Hanindo) atau folo (FOLO).';
+
+-- ----- 004_postgrest_schema_reload_rpc.sql (retry otomatis dari browser) -----
+create or replace function public.request_postgrest_schema_reload()
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  perform pg_notify('pgrst', 'reload schema');
+end;
+$$;
+
+comment on function public.request_postgrest_schema_reload() is
+  'Triggers PostgREST schema cache reload; used by dashboard after PGRST205 / stale schema.';
+
+revoke all on function public.request_postgrest_schema_reload() from public;
+grant execute on function public.request_postgrest_schema_reload() to authenticated;
+grant execute on function public.request_postgrest_schema_reload() to service_role;
+
+-- Refresh cache API Supabase (PostgREST)
+notify pgrst, 'reload schema';

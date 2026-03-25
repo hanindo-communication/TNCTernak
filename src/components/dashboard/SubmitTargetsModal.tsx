@@ -11,30 +11,64 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import type { Creator, CreatorType, Project, TargetFormRow, TikTokAccount } from "@/lib/types";
+import type {
+  Brand,
+  Creator,
+  Project,
+  TargetFormRow,
+  TikTokAccount,
+} from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { formatSupabaseClientError } from "@/lib/supabase/format-client-error";
+import {
+  BASE_PAY_PRESET_VALUES,
+  defaultBasePayPreset,
+} from "@/lib/dashboard/base-pay-presets";
+import { TABLE_SEGMENT_ALL_ID } from "@/lib/dashboard/table-segments";
+import type { TableSegmentOption } from "@/components/dashboard/QuickFilterChips";
+
+const basePayAllowed = new Set<number>([...BASE_PAY_PRESET_VALUES]);
 
 function emptyRow(month: string): TargetFormRow {
   return {
     creatorId: "",
+    tableSegmentId: TABLE_SEGMENT_ALL_ID,
     projectId: "",
     creatorType: "Internal",
     tiktokAccountId: "",
     month,
     targetVideos: 0,
     incentivePerVideo: 0,
-    basePay: 0,
+    basePay: defaultBasePayPreset(),
   };
 }
 
-function validateRow(row: TargetFormRow): string | null {
+function validateRow(
+  row: TargetFormRow,
+  projects: Project[],
+  brands: Brand[],
+): string | null {
   if (!row.creatorId) return "Each row needs a creator.";
   if (!row.projectId) return "Each row needs a project.";
   if (!row.tiktokAccountId) return "Each row needs a TikTok account.";
   if (!row.month) return "Each row needs a month.";
   if (row.targetVideos < 0) return "Target videos must be 0 or more.";
-  if (row.incentivePerVideo < 0 || row.basePay < 0)
-    return "Currency fields must be 0 or more.";
+  if (row.incentivePerVideo < 0)
+    return "Incentive per video must be 0 or more.";
+  if (!basePayAllowed.has(row.basePay))
+    return "Base pay harus salah satu: 785.000, 1.570.000, atau 2.350.000.";
+  if (
+    row.tableSegmentId === "tnc" ||
+    row.tableSegmentId === "folo"
+  ) {
+    const p = projects.find((x) => x.id === row.projectId);
+    const br = p?.brandId
+      ? brands.find((b) => b.id === p.brandId)
+      : undefined;
+    if (!br || br.tableSegmentId !== row.tableSegmentId) {
+      return "Project tidak cocok dengan Table (TNC / FOLO) yang dipilih.";
+    }
+  }
   return null;
 }
 
@@ -43,9 +77,10 @@ interface SubmitTargetsModalProps {
   onOpenChange: (open: boolean) => void;
   selectedMonth: string;
   creators: Creator[];
+  brands: Brand[];
   projects: Project[];
   tiktokAccounts: TikTokAccount[];
-  defaultBasePayByType: Record<CreatorType, number>;
+  tableSegments: TableSegmentOption[];
   onSubmitTargets: (rows: TargetFormRow[]) => void | Promise<void>;
 }
 
@@ -54,9 +89,10 @@ export function SubmitTargetsModal({
   onOpenChange,
   selectedMonth,
   creators,
+  brands,
   projects,
   tiktokAccounts,
-  defaultBasePayByType,
+  tableSegments,
   onSubmitTargets,
 }: SubmitTargetsModalProps) {
   const [rows, setRows] = useState<TargetFormRow[]>(() => [
@@ -69,8 +105,6 @@ export function SubmitTargetsModal({
     }
     onOpenChange(next);
   };
-
-  const defaultBasePay = (type: CreatorType) => defaultBasePayByType[type];
 
   const updateRow = (idx: number, next: TargetFormRow) => {
     setRows((prev) => prev.map((r, i) => (i === idx ? next : r)));
@@ -99,7 +133,7 @@ export function SubmitTargetsModal({
 
   const handleSubmit = async () => {
     for (const row of rows) {
-      const err = validateRow(row);
+      const err = validateRow(row, projects, brands);
       if (err) {
         toast.error("Validasi", { description: err });
         return;
@@ -111,13 +145,23 @@ export function SubmitTargetsModal({
       handleDialogOpenChange(false);
     } catch (e) {
       toast.error("Gagal menyimpan", {
-        description: e instanceof Error ? e.message : "Unknown error",
+        description: formatSupabaseClientError(e),
       });
     }
   };
 
-  const hasOptions =
-    creators.length > 0 && projects.length > 0 && tiktokAccounts.length > 0;
+  const missingCreators = creators.length === 0;
+  const missingProjects = projects.length === 0;
+  const missingTiktok = tiktokAccounts.length === 0;
+  const hasOptions = !missingCreators && !missingProjects && !missingTiktok;
+
+  const missingHint = [
+    missingCreators && "creator",
+    missingProjects && "project",
+    missingTiktok && "akun TikTok",
+  ]
+    .filter(Boolean)
+    .join(", ");
 
   return (
     <Dialog open={open} onOpenChange={handleDialogOpenChange}>
@@ -138,10 +182,17 @@ export function SubmitTargetsModal({
               className="mb-4 rounded-xl border border-neon-cyan/25 bg-neon-cyan/10 px-4 py-3 text-sm text-foreground/95"
               role="status"
             >
-              Dropdown kosong: isi{" "}
-              <span className="font-semibold text-neon-cyan">Data settings</span>{" "}
-              di header (brand, project, creator, akun TikTok), simpan &amp;
-              sinkron — atau muat data demo di dashboard.
+              Lengkapi dulu di{" "}
+              <span className="font-semibold text-neon-cyan">Data settings</span>
+              {missingHint ? (
+                <>
+                  : belum ada{" "}
+                  <span className="font-semibold text-foreground">{missingHint}</span>
+                  . Klik <strong>Simpan &amp; sinkron</strong> setelah mengisi.
+                </>
+              ) : (
+                <> — simpan &amp; sinkron, atau muat data demo di dashboard.</>
+              )}
             </div>
           ) : null}
           <BulkTargetSubmissionsTable
@@ -152,9 +203,10 @@ export function SubmitTargetsModal({
             onUpdateRow={updateRow}
             onRemoveRow={removeRow}
             creators={creators}
+            brands={brands}
             projects={projects}
             tiktokAccounts={tiktokAccounts}
-            defaultBasePay={defaultBasePay}
+            tableSegments={tableSegments}
           />
         </div>
 

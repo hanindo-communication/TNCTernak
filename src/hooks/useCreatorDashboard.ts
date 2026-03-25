@@ -11,7 +11,8 @@ import {
 } from "@/lib/dashboard/supabase-data";
 import { mergeTargetForms } from "@/lib/dashboard/merge-targets";
 import { createClient } from "@/lib/supabase/client";
-import { defaultBasePayByType } from "@/lib/mock-data";
+import { formatSupabaseClientError } from "@/lib/supabase/format-client-error";
+import { withPostgrestSchemaRetry } from "@/lib/supabase/postgrest-retry";
 import type {
   CreatorTarget,
   DashboardFilters,
@@ -79,8 +80,10 @@ export function useCreatorDashboard() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      await ensureWorkspaceDefaults(supabase);
-      const d = await fetchDashboardData(supabase);
+      const d = await withPostgrestSchemaRetry(supabase, async () => {
+        await ensureWorkspaceDefaults(supabase);
+        return fetchDashboardData(supabase);
+      });
       setBundle(d);
     } catch (e) {
       console.error(e);
@@ -120,6 +123,20 @@ export function useCreatorDashboard() {
       list = list.filter((t) => pids.has(t.projectId));
     }
 
+    if (quickFilter !== "all") {
+      const brandIdsInSegment = new Set(
+        brands
+          .filter((b) => b.tableSegmentId === quickFilter)
+          .map((b) => b.id),
+      );
+      const pids = new Set(
+        projects
+          .filter((p) => brandIdsInSegment.has(p.brandId))
+          .map((p) => p.id),
+      );
+      list = list.filter((t) => pids.has(t.projectId));
+    }
+
     const byCreator = new Map<string, CreatorTarget[]>();
     for (const t of list) {
       const arr = byCreator.get(t.creatorId) ?? [];
@@ -129,15 +146,11 @@ export function useCreatorDashboard() {
 
     const creatorIds = [...byCreator.keys()].filter((cid) => {
       const c = creators.find((x) => x.id === cid);
-      if (!c) return false;
-
-      if (quickFilter === "internal") return c.creatorType === "Internal";
-      if (quickFilter === "external") return c.creatorType === "External";
-      return true;
+      return Boolean(c);
     });
 
     return { byCreator, visibleCreatorIds: creatorIds };
-  }, [monthTargets, filters, quickFilter, creators, projects]);
+  }, [monthTargets, filters, quickFilter, creators, projects, brands]);
 
   const creatorRows: AggregatedCreatorRow[] = useMemo(() => {
     const { byCreator, visibleCreatorIds } = filteredLeafTargets;
@@ -230,9 +243,7 @@ export function useCreatorDashboard() {
             await persistTargets(supabase, nextTargets);
             await load();
           } catch (e) {
-            toast.error(
-              e instanceof Error ? e.message : "Gagal menyimpan target",
-            );
+            toast.error(formatSupabaseClientError(e));
           }
         })();
         return { ...prev, targets: nextTargets };
@@ -246,7 +257,7 @@ export function useCreatorDashboard() {
       await seedDemoData(supabase);
       await load();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Gagal memuat data demo");
+      toast.error(formatSupabaseClientError(e));
     }
   }, [supabase, load]);
 
@@ -272,7 +283,6 @@ export function useCreatorDashboard() {
     organizations,
     campaignObjectives,
     tiktokAccounts,
-    defaultBasePayByType,
     targets,
     selectedMonth,
     setSelectedMonth,
@@ -289,6 +299,5 @@ export function useCreatorDashboard() {
     overviewStats,
     reload: load,
     seedIfEmpty,
-    needsSeed: !loading && creators.length === 0,
   };
 }

@@ -1,6 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { defaultBasePayByType } from "@/lib/mock-data";
 import { SHARED_DASHBOARD_USER_ID } from "@/lib/dashboard/shared-workspace";
+import { withPostgrestSchemaRetry } from "@/lib/supabase/postgrest-retry";
+import { parseTableSegmentFromDb } from "@/lib/dashboard/table-segments";
 import type { StoredFormEntities } from "@/lib/dashboard/form-settings-storage";
 import type {
   Brand,
@@ -60,6 +62,15 @@ export async function syncStoredFormEntitiesToSupabase(
   supabase: SupabaseClient,
   stored: StoredFormEntities,
 ): Promise<void> {
+  return withPostgrestSchemaRetry(supabase, () =>
+    syncStoredFormEntitiesToSupabaseOnce(supabase, stored),
+  );
+}
+
+async function syncStoredFormEntitiesToSupabaseOnce(
+  supabase: SupabaseClient,
+  stored: StoredFormEntities,
+): Promise<void> {
   await ensureWorkspaceDefaults(supabase);
   const wid = SHARED_DASHBOARD_USER_ID;
   const { data: orgRows, error: orgErr } = await supabase
@@ -81,7 +92,12 @@ export async function syncStoredFormEntitiesToSupabase(
 
   for (const b of stored.brands) {
     const { error } = await supabase.from("brands").upsert(
-      { id: b.id, user_id: wid, name: b.name },
+      {
+        id: b.id,
+        user_id: wid,
+        name: b.name,
+        table_segment: b.tableSegmentId === "folo" ? "folo" : "tnc",
+      },
       { onConflict: "id" },
     );
     if (error) throw error;
@@ -164,6 +180,9 @@ export async function fetchDashboardData(
   const brands: Brand[] = (brandRows ?? []).map((r) => ({
     id: r.id as string,
     name: r.name as string,
+    tableSegmentId: parseTableSegmentFromDb(
+      r.table_segment as string | null | undefined,
+    ),
   }));
 
   const projects: Project[] = (projectRows ?? []).map((r) => ({
@@ -231,6 +250,15 @@ export async function persistTargets(
   supabase: SupabaseClient,
   targets: CreatorTarget[],
 ): Promise<void> {
+  return withPostgrestSchemaRetry(supabase, () =>
+    persistTargetsOnce(supabase, targets),
+  );
+}
+
+async function persistTargetsOnce(
+  supabase: SupabaseClient,
+  targets: CreatorTarget[],
+): Promise<void> {
   const rows = targets.map((t) => ({
     user_id: SHARED_DASHBOARD_USER_ID,
     creator_id: t.creatorId,
@@ -287,17 +315,17 @@ export async function seedDemoData(supabase: SupabaseClient): Promise<void> {
 
   const { data: b1, error: b1e } = await supabase
     .from("brands")
-    .insert({ user_id: wid, name: "USP Branding" })
+    .insert({ user_id: wid, name: "USP Branding", table_segment: "tnc" })
     .select("id")
     .single();
   const { data: b2, error: b2e } = await supabase
     .from("brands")
-    .insert({ user_id: wid, name: "Cashflow Farm" })
+    .insert({ user_id: wid, name: "Cashflow Farm", table_segment: "folo" })
     .select("id")
     .single();
   const { data: b3, error: b3e } = await supabase
     .from("brands")
-    .insert({ user_id: wid, name: "Public Goods Co." })
+    .insert({ user_id: wid, name: "Public Goods Co.", table_segment: "tnc" })
     .select("id")
     .single();
   if (b1e || b2e || b3e) throw b1e ?? b2e ?? b3e;

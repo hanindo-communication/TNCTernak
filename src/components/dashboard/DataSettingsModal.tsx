@@ -23,28 +23,15 @@ import type {
   TikTokAccount,
 } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { formatSupabaseClientError } from "@/lib/supabase/format-client-error";
+import {
+  normalizeBrandTableSegment,
+  TABLE_SEGMENT_ASSIGN_OPTIONS,
+} from "@/lib/dashboard/table-segments";
+import type { TableSegmentId } from "@/lib/types";
 
 const inputClass =
   "h-9 w-full min-w-0 rounded-md border border-white/10 bg-white/[0.04] px-2 text-sm text-foreground outline-none transition focus:border-neon-cyan/55 focus:ring-1 focus:ring-neon-cyan/25";
-
-function supabaseErrorMessage(e: unknown): string {
-  if (e == null) return "Unknown error";
-  if (typeof e === "object" && e !== null && "message" in e) {
-    const err = e as {
-      message: string;
-      details?: string;
-      hint?: string;
-      code?: string;
-    };
-    const parts = [err.message, err.details, err.hint].filter(
-      (s): s is string => Boolean(s),
-    );
-    if (err.code) parts.push(`[${err.code}]`);
-    return parts.join(" — ");
-  }
-  if (e instanceof Error) return e.message;
-  return String(e);
-}
 
 function CommittedTextInput({
   className,
@@ -87,20 +74,36 @@ function CommittedTextInput({
       />
       <button
         type="button"
-        title="Terapkan"
-        disabled={!dirty}
+        title={
+          dirty
+            ? "Terapkan perubahan ke baris ini"
+            : "Tidak ada perubahan — ubah teks dulu, atau tetap bisa diklik untuk memastikan"
+        }
         onClick={flush}
-        className="flex h-9 shrink-0 items-center justify-center rounded-md border border-white/10 px-2 text-neon-cyan transition hover:border-neon-cyan/45 disabled:cursor-not-allowed disabled:opacity-35"
+        className={cn(
+          "flex h-9 shrink-0 items-center justify-center rounded-md border px-2 text-neon-cyan transition hover:border-neon-cyan/45",
+          dirty
+            ? "border-white/10 hover:bg-white/[0.06]"
+            : "border-white/10 opacity-55 hover:opacity-90",
+        )}
       >
         <Check className="h-4 w-4" aria-hidden />
         <span className="sr-only">Terapkan</span>
       </button>
       <button
         type="button"
-        title="Batalkan"
-        disabled={!dirty}
+        title={
+          dirty
+            ? "Kembalikan ke nilai tersimpan"
+            : "Sudah sama dengan tersimpan"
+        }
         onClick={() => setDraft(value)}
-        className="flex h-9 shrink-0 items-center justify-center rounded-md border border-white/10 px-2 text-muted transition hover:border-red-400/40 hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-35"
+        className={cn(
+          "flex h-9 shrink-0 items-center justify-center rounded-md border px-2 text-muted transition hover:border-red-400/40 hover:text-red-300",
+          dirty
+            ? "border-white/10 hover:bg-white/[0.04]"
+            : "border-white/10 opacity-55 hover:opacity-90",
+        )}
       >
         <X className="h-4 w-4" aria-hidden />
         <span className="sr-only">Batalkan</span>
@@ -170,7 +173,7 @@ export function DataSettingsModal({
   const importFromWorkspace = () => {
     setDraft({
       v: 1,
-      brands: workspaceBrands.map((b) => ({ ...b })),
+      brands: workspaceBrands.map((b) => normalizeBrandTableSegment({ ...b })),
       projects: workspaceProjects.map((p) => ({ ...p })),
       creators: workspaceCreators.map((c) => ({ ...c })),
       tiktokAccounts: workspaceTiktok.map((t) => ({ ...t })),
@@ -188,6 +191,12 @@ export function DataSettingsModal({
     for (const b of d.brands) {
       if (!b.name.trim()) {
         toast.error("Brand", { description: "Semua brand harus punya nama." });
+        return;
+      }
+      if (b.tableSegmentId !== "tnc" && b.tableSegmentId !== "folo") {
+        toast.error("Table", {
+          description: `Brand "${b.name.trim()}" perlu dipilih Table (TNC Hanindo atau FOLO).`,
+        });
         return;
       }
     }
@@ -229,7 +238,7 @@ export function DataSettingsModal({
       onOpenChange(false);
     } catch (e) {
       toast.error("Gagal menyimpan", {
-        description: supabaseErrorMessage(e),
+        description: formatSupabaseClientError(e),
       });
     } finally {
       setSaving(false);
@@ -265,9 +274,9 @@ export function DataSettingsModal({
             </h4>
             <div className="space-y-2">
               {draft.brands.map((b, i) => (
-                <div key={b.id} className="flex min-w-0 gap-2">
+                <div key={b.id} className="flex min-w-0 flex-wrap items-center gap-2">
                   <CommittedTextInput
-                    className="min-w-0 flex-1"
+                    className="min-w-0 flex-1 basis-[140px]"
                     value={b.name}
                     placeholder="Nama brand"
                     registerFlush={registerFlush}
@@ -281,6 +290,27 @@ export function DataSettingsModal({
                       });
                     }}
                   />
+                  <select
+                    className={cn(inputClass, "w-full min-w-[200px] sm:w-[220px]")}
+                    value={b.tableSegmentId}
+                    onChange={(e) => {
+                      const seg = e.target.value as TableSegmentId;
+                      setDraft((prev) => {
+                        const nb = [...prev.brands];
+                        const cur = nb[i];
+                        if (!cur) return prev;
+                        nb[i] = { ...cur, tableSegmentId: seg };
+                        return { ...prev, brands: nb };
+                      });
+                    }}
+                    aria-label={`Table untuk brand ${i + 1}`}
+                  >
+                    {TABLE_SEGMENT_ASSIGN_OPTIONS.map((o) => (
+                      <option key={o.id} value={o.id}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
                   <button
                     type="button"
                     className="shrink-0 rounded-md border border-white/10 px-2 text-xs text-muted hover:border-red-400/40 hover:text-red-300"
@@ -303,7 +333,11 @@ export function DataSettingsModal({
                     ...draft,
                     brands: [
                       ...draft.brands,
-                      { id: crypto.randomUUID(), name: "" },
+                      {
+                        id: crypto.randomUUID(),
+                        name: "",
+                        tableSegmentId: "tnc",
+                      },
                     ],
                   })
                 }

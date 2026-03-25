@@ -1,23 +1,26 @@
 "use client";
 
-import type { QuickFilter } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-const items: { id: QuickFilter; label: string }[] = [
-  { id: "all", label: "All Creators" },
-  { id: "internal", label: "TNC Hanindo Ternak" },
-  { id: "external", label: "FOLO Ternak" },
-];
-
-interface QuickFilterChipsProps {
-  value: QuickFilter;
-  onChange: (v: QuickFilter) => void;
+export interface TableSegmentOption {
+  id: string;
+  label: string;
 }
 
-export function QuickFilterChips({ value, onChange }: QuickFilterChipsProps) {
+interface QuickFilterChipsProps {
+  segments: TableSegmentOption[];
+  value: string;
+  onChange: (v: string) => void;
+}
+
+export function QuickFilterChips({
+  segments,
+  value,
+  onChange,
+}: QuickFilterChipsProps) {
   return (
     <div className="flex flex-wrap gap-2">
-      {items.map((item) => {
+      {segments.map((item) => {
         const active = value === item.id;
         return (
           <button

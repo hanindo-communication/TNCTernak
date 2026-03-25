@@ -14,9 +14,9 @@ export const organizations: Organization[] = [
 ];
 
 export const brands: Brand[] = [
-  { id: "brand-1", name: "USP Branding" },
-  { id: "brand-2", name: "Cashflow Farm" },
-  { id: "brand-3", name: "Public Goods Co." },
+  { id: "brand-1", name: "USP Branding", tableSegmentId: "tnc" },
+  { id: "brand-2", name: "Cashflow Farm", tableSegmentId: "folo" },
+  { id: "brand-3", name: "Public Goods Co.", tableSegmentId: "tnc" },
 ];
 
 export const creators: Creator[] = [

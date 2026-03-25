@@ -2,9 +2,14 @@ export type CreatorType = "Internal" | "External" | "AssetLoan";
 
 export type TargetStatus = "on_track" | "below" | "exceeded";
 
+/** Dua meja tetap untuk chip filter & kolom Table (bukan nama brand bebas). */
+export type TableSegmentId = "tnc" | "folo";
+
 export interface Brand {
   id: string;
   name: string;
+  /** FOLO vs TNC Hanindo — diatur di Data settings per brand. */
+  tableSegmentId: TableSegmentId;
 }
 
 export interface Organization {
@@ -63,6 +68,8 @@ export interface CreatorTarget {
 
 export interface TargetFormRow {
   creatorId: string;
+  /** Sama dengan chip di atas: all | tnc | folo. */
+  tableSegmentId: string;
   projectId: string;
   creatorType: CreatorType;
   tiktokAccountId: string;
@@ -72,7 +79,8 @@ export interface TargetFormRow {
   basePay: number;
 }
 
-export type QuickFilter = "all" | "internal" | "external";
+/** Chip filter: all | tnc | folo. */
+export type QuickFilter = string;
 
 export interface DashboardFilters {
   creatorId: string;
