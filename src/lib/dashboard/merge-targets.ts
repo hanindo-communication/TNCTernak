@@ -1,4 +1,5 @@
 import { FOLO_TARGET_EXPECTED_PROFIT_REVENUE_SHARE } from "@/lib/dashboard/financial-rules";
+import { filterPlausibleVideoUrls } from "@/lib/dashboard/video-urls";
 import type { CreatorTarget, TargetFormRow } from "@/lib/types";
 import {
   buildTargetCompositeKey,
@@ -26,15 +27,28 @@ export function syncDerivedFinancials(t: CreatorTarget): CreatorTarget {
       ? expectedRevenue * FOLO_TARGET_EXPECTED_PROFIT_REVENUE_SHARE
       : expectedRevenue;
   const expectedProfit = profitRevenueBase - incentives - t.reimbursements;
-  const actualProfit = t.actualRevenue - incentives - t.reimbursements;
+
+  const urlList = filterPlausibleVideoUrls(
+    (t.submittedVideoUrls ?? []).map((s) => String(s).trim()),
+  );
+  const storedSubmitted = Math.max(0, Math.floor(Number(t.submittedVideos)) || 0);
+  const submittedVideos =
+    urlList.length > 0
+      ? Math.max(urlList.length, storedSubmitted)
+      : storedSubmitted;
+  const actualRevenue = submittedVideos * bp;
+  const actualProfit = actualRevenue - incentives - t.reimbursements;
   return {
     ...t,
     targetVideos: tv,
     basePay: bp,
     incentivePerVideo: ipv,
+    submittedVideos,
+    submittedVideoUrls: urlList,
     expectedRevenue,
     incentives,
     expectedProfit,
+    actualRevenue,
     actualProfit,
   };
 }
@@ -81,14 +95,66 @@ export function applyTargetVideosUpdate(
   return syncDerivedFinancials({ ...t, targetVideos: v });
 }
 
-/** Add completed video count (from URL lines); keeps revenue fields unchanged. */
+/** Tambah hitungan submit tanpa URL (delta saja). */
 export function applySubmittedVideosDelta(
   t: CreatorTarget,
   delta: number,
 ): CreatorTarget {
   const d = Math.max(0, Math.floor(Number(delta)) || 0);
-  const submittedVideos = Math.max(0, t.submittedVideos + d);
-  return { ...t, submittedVideos };
+  if (d <= 0) return syncDerivedFinancials(t);
+  const prev = Math.max(0, Math.floor(Number(t.submittedVideos)) || 0);
+  return syncDerivedFinancials({ ...t, submittedVideos: prev + d });
+}
+
+/** Tambah URL video yang disubmit; menyatukan dengan daftar ada (dedupe). */
+export function appendSubmittedVideoUrls(
+  t: CreatorTarget,
+  newUrls: string[],
+): CreatorTarget {
+  const add = filterPlausibleVideoUrls(
+    newUrls.map((s) => String(s).trim()),
+  );
+  if (add.length === 0) return syncDerivedFinancials(t);
+
+  const existing = filterPlausibleVideoUrls(
+    (t.submittedVideoUrls ?? []).map((s) => String(s).trim()),
+  );
+  const seen = new Set(existing.map((u) => u.toLowerCase()));
+  const merged = [...existing];
+  for (const u of add) {
+    const k = u.toLowerCase();
+    if (seen.has(k)) continue;
+    seen.add(k);
+    merged.push(u);
+  }
+
+  const prevCount = Math.max(0, Math.floor(Number(t.submittedVideos)) || 0);
+  const delta = merged.length - existing.length;
+  const nextSubmitted =
+    existing.length === 0 && prevCount > 0
+      ? prevCount + delta
+      : merged.length;
+
+  return syncDerivedFinancials({
+    ...t,
+    submittedVideoUrls: merged,
+    submittedVideos: nextSubmitted,
+  });
+}
+
+/** Ganti daftar URL sepenuhnya (dari editor meja). */
+export function replaceSubmittedVideoUrls(
+  t: CreatorTarget,
+  urls: string[],
+): CreatorTarget {
+  const cleaned = filterPlausibleVideoUrls(
+    urls.map((s) => String(s).trim()),
+  );
+  return syncDerivedFinancials({
+    ...t,
+    submittedVideoUrls: cleaned,
+    submittedVideos: cleaned.length,
+  });
 }
 
 function compositeKeyFromRow(
@@ -120,7 +186,7 @@ export function mergeTargetForms(
     const existing = map.get(key);
     const id = existing?.id ?? crypto.randomUUID();
     const submittedVideos = existing?.submittedVideos ?? 0;
-    const actualRevenue = existing?.actualRevenue ?? 0;
+    const submittedVideoUrls = existing?.submittedVideoUrls ?? [];
     const reimbursements = existing?.reimbursements ?? 0;
 
     const targetVideos = Math.max(0, Math.floor(Number(row.targetVideos)) || 0);
@@ -140,14 +206,15 @@ export function mergeTargetForms(
       tableSegmentId: tableSegmentFromFormRow(row),
       targetVideos,
       submittedVideos,
+      submittedVideoUrls,
       incentivePerVideo,
       basePay: row.basePay,
       expectedRevenue: 0,
-      actualRevenue,
+      actualRevenue: 0,
       incentives: 0,
       reimbursements,
       expectedProfit: 0,
-      actualProfit: actualRevenue - reimbursements,
+      actualProfit: 0,
     });
     map.set(key, next);
   }

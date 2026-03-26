@@ -157,6 +157,7 @@ function CreatorDashboardInner({
     handleUpdateTargetRows,
     handleDeleteCreatorTargets,
     handleSubmitVideoUrls,
+    handleReplaceTargetVideoLinks,
     targets,
     campaignObjectives,
     loading,
@@ -309,7 +310,7 @@ function CreatorDashboardInner({
   }, [deleteConfirm, handleDeleteCreatorTargets]);
 
   const submitVideosAndClear = useCallback(
-    async (deltas: { targetId: string; addVideos: number }[]) => {
+    async (deltas: { targetId: string; urls: string[] }[]) => {
       await handleSubmitVideoUrls(deltas);
       setVideoSubmitTargetIds(new Set());
     },
@@ -438,6 +439,7 @@ function CreatorDashboardInner({
                   onOpenSubmitVideosForCreator={openSubmitVideosForCreator}
                   onDeleteCreatorTargets={requestDeleteCreatorTargets}
                   onPersistHanindoPercent={persistHanindoPercent}
+                  onReplaceTargetVideoLinks={handleReplaceTargetVideoLinks}
                 />
               </div>
             </>

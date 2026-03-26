@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "db:apply-segment": "node scripts/apply-brands-table-segment.cjs"
+    "db:apply-segment": "node scripts/apply-brands-table-segment.cjs",
+    "db:apply-video-urls": "node scripts/apply-submitted-video-urls.cjs"
   },
   "dependencies": {
     "@radix-ui/react-collapsible": "^1.1.12",

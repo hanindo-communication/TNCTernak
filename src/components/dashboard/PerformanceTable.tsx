@@ -4,12 +4,21 @@ import {
   ChevronRight,
   Eye,
   Film,
+  Link2,
   Pencil,
+  Plus,
   SlidersHorizontal,
   Trash2,
 } from "lucide-react";
 import Image from "next/image";
-import { useCallback, useMemo, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import type { Creator } from "@/lib/types";
 import {
   DEFAULT_HANINDO_SHARING_PERCENT,
@@ -26,8 +35,18 @@ import {
 import { CreatorTypeChip } from "@/components/dashboard/CreatorTypeChip";
 import { EditCreatorTargetsDialog } from "@/components/dashboard/EditCreatorTargetsDialog";
 import type { TableSegmentOption } from "@/components/dashboard/QuickFilterChips";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import type { CreatorTargetRowSave } from "@/lib/dashboard/merge-targets";
+import {
+  filterPlausibleVideoUrls,
+  isPlausibleSubmittedVideoUrl,
+} from "@/lib/dashboard/video-urls";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 const th =
   "px-3 py-3 text-left text-[10px] font-semibold uppercase tracking-[0.18em] text-muted";
@@ -55,6 +74,10 @@ interface PerformanceTableProps {
     creatorId: string,
     percent: number,
   ) => void | Promise<void>;
+  onReplaceTargetVideoLinks: (
+    targetId: string,
+    urls: string[],
+  ) => void | Promise<void>;
 }
 
 export function PerformanceTable({
@@ -72,6 +95,7 @@ export function PerformanceTable({
   onOpenSubmitVideosForCreator,
   onDeleteCreatorTargets,
   onPersistHanindoPercent,
+  onReplaceTargetVideoLinks,
 }: PerformanceTableProps) {
   const { snapshot: hanindoLocalSnapshot } = useCreatorHanindoPercents();
   const hanindoPctByCreator = useMemo(
@@ -282,7 +306,31 @@ export function PerformanceTable({
                     {row.targetVideos}
                   </td>
                   <td className="px-3 py-3 font-mono text-xs text-foreground">
-                    {row.submittedVideos}
+                    <div className="flex items-center justify-start gap-1.5">
+                      <span>{row.submittedVideos}</span>
+                      {breakdown.length === 1 && breakdown[0] ? (
+                        <SubmittedVideoLinksPopover
+                          urls={breakdown[0].submittedVideoUrls}
+                          submittedVideos={breakdown[0].submittedVideos}
+                          onSave={(urls) =>
+                            void onReplaceTargetVideoLinks(
+                              breakdown[0]!.targetId,
+                              urls,
+                            )
+                          }
+                        />
+                      ) : breakdown.length > 1 ? (
+                        <button
+                          type="button"
+                          onClick={() => toggle(row.creatorId)}
+                          className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-white/10 text-muted transition hover:border-neon-cyan/40 hover:text-neon-cyan"
+                          title="Buka breakdown untuk edit link per campaign"
+                          aria-label="Buka breakdown untuk edit link video"
+                        >
+                          <Link2 className="h-3.5 w-3.5" />
+                        </button>
+                      ) : null}
+                    </div>
                   </td>
                   <td className="px-3 py-3 text-xs text-foreground/90">
                     {formatCurrency(row.expectedRevenue)}
@@ -432,7 +480,19 @@ export function PerformanceTable({
                                       {b.targetVideos}
                                     </td>
                                     <td className="px-3 py-2 font-mono">
-                                      {b.submittedVideos}
+                                      <div className="flex items-center gap-1.5">
+                                        <span>{b.submittedVideos}</span>
+                                        <SubmittedVideoLinksPopover
+                                          urls={b.submittedVideoUrls}
+                                          submittedVideos={b.submittedVideos}
+                                          onSave={(urls) =>
+                                            void onReplaceTargetVideoLinks(
+                                              b.targetId,
+                                              urls,
+                                            )
+                                          }
+                                        />
+                                      </div>
                                     </td>
                                     <td className="px-3 py-2">
                                       {formatCurrency(b.expectedRevenue)}
@@ -511,6 +571,230 @@ export function PerformanceTable({
         onSave={onUpdateTargetRows}
       />
     </div>
+  );
+}
+
+function SubmittedVideoLinksPopover({
+  urls,
+  submittedVideos,
+  onSave,
+}: {
+  urls: string[];
+  submittedVideos: number;
+  onSave: (urls: string[]) => void | Promise<void>;
+}) {
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState<string[]>([]);
+  const [newUrl, setNewUrl] = useState("");
+  const [saving, setSaving] = useState(false);
+  const openedRoundRef = useRef(false);
+
+  useEffect(() => {
+    if (!open) {
+      openedRoundRef.current = false;
+      return;
+    }
+    if (openedRoundRef.current) return;
+    openedRoundRef.current = true;
+
+    const fromServer = filterPlausibleVideoUrls(
+      urls.map((u) => String(u).trim()),
+    );
+    const legacySlots = Math.max(0, submittedVideos - fromServer.length);
+    setDraft([...fromServer, ...Array(legacySlots).fill("")]);
+    setNewUrl("");
+  }, [open, urls, submittedVideos]);
+
+  const patchDraftIdx = (idx: number, value: string) => {
+    setDraft((d) => d.map((x, i) => (i === idx ? value : x)));
+  };
+
+  const add = () => {
+    const s = newUrl.trim();
+    if (!s) return;
+    if (!isPlausibleSubmittedVideoUrl(s)) {
+      toast.error("Bukan URL video yang valid", {
+        description:
+          "Pakai link TikTok (https://…). Jangan tempel pesan error atau teks panjang dari toast.",
+      });
+      return;
+    }
+    setDraft((d) =>
+      d.some((x) => x.trim().toLowerCase() === s.toLowerCase()) ? d : [...d, s],
+    );
+    setNewUrl("");
+  };
+
+  const addEmptySlot = () => {
+    setDraft((d) => [...d, ""]);
+  };
+
+  const save = async () => {
+    const cleaned = filterPlausibleVideoUrls(
+      draft.map((s) => s.trim()).filter((s) => s.length > 0),
+    );
+    setSaving(true);
+    try {
+      await onSave(cleaned);
+      setOpen(false);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const filledCount = draft.filter((s) => s.trim().length > 0).length;
+  const hasEmptySlots = draft.some((s) => s.trim().length === 0);
+  const storedUrlCount = filterPlausibleVideoUrls(
+    urls.map((u) => String(u).trim()),
+  ).length;
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          onClick={(e) => e.stopPropagation()}
+          className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-white/10 text-muted transition hover:border-neon-cyan/40 hover:text-neon-cyan"
+          title="Edit daftar link video"
+          aria-label="Edit daftar link video"
+        >
+          <Link2 className="h-3.5 w-3.5" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        className="w-[min(100vw-2rem,380px)] min-w-[280px] border-white/[0.08] bg-[#0a1020]/98 p-3 shadow-2xl"
+        align="start"
+        sideOffset={8}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted">
+          Link video
+        </p>
+        <p className="mb-3 text-[11px] leading-snug text-muted">
+          Hanya link TikTok/URL video yang valid. Teks error atau pesan SQL dari
+          toast tidak bisa ditambahkan. Tampilan memuat URL tersimpan di
+          database. Satu baris terisi = satu video →{" "}
+          <span className="text-foreground/85">Actual revenue</span> ={" "}
+          <span className="font-mono text-foreground/80">
+            jumlah link × base pay
+          </span>
+          . <strong className="font-semibold text-foreground/90">Simpan</strong>{" "}
+          menyamakan hitungan submit dengan jumlah link yang terisi.
+        </p>
+        {storedUrlCount === 0 && submittedVideos > 0 ? (
+          <p className="mb-2 rounded-lg border border-sky-500/25 bg-sky-500/10 px-2 py-1.5 text-[11px] text-sky-100/90">
+            Ada {submittedVideos} submit di data, belum ada URL tersimpan (jalankan{" "}
+            <code className="rounded bg-black/30 px-1">npm run db:apply-video-urls</code>{" "}
+            jika simpan error). Isi URL pada baris kosong di bawah lalu Simpan.
+          </p>
+        ) : null}
+        {hasEmptySlots && draft.length > 0 ? (
+          <p className="mb-2 rounded-lg border border-amber-500/25 bg-amber-500/10 px-2 py-1.5 text-[11px] text-amber-100/90">
+            Baris kosong tidak dihitung sampai diisi. Saat ini{" "}
+            <span className="font-mono">{filledCount}</span> URL terisi, di meja:{" "}
+            <span className="font-mono">{submittedVideos}</span> submitted (sebelum
+            simpan).
+          </p>
+        ) : null}
+        <ul className="mb-3 max-h-48 space-y-1.5 overflow-y-auto">
+          {draft.length === 0 ? (
+            <li className="text-[11px] text-muted">
+              Belum ada baris. Tambah URL atau slot kosong.
+            </li>
+          ) : (
+            draft.map((u, idx) => (
+              <li
+                key={`row-${idx}`}
+                className="flex items-start gap-2 rounded-lg border border-white/[0.06] bg-black/30 px-2 py-1.5"
+              >
+                {u.trim().length > 0 && isPlausibleSubmittedVideoUrl(u) ? (
+                  <a
+                    href={u.trim().startsWith("http") ? u.trim() : `https://${u.trim()}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="min-w-0 flex-1 break-all text-[11px] text-neon-cyan/90 underline-offset-2 hover:underline"
+                  >
+                    {u.trim()}
+                  </a>
+                ) : (
+                  <input
+                    type="text"
+                    inputMode="url"
+                    autoComplete="off"
+                    value={u}
+                    onChange={(e) => patchDraftIdx(idx, e.target.value)}
+                    placeholder="Tempel URL TikTok (slot…)"
+                    className="min-w-0 flex-1 rounded border border-white/10 bg-black/40 px-2 py-1 text-[11px] text-foreground placeholder:text-muted focus:border-neon-cyan/40 focus:outline-none"
+                  />
+                )}
+                <button
+                  type="button"
+                  onClick={() =>
+                    setDraft((d) => d.filter((_, i) => i !== idx))
+                  }
+                  className="shrink-0 rounded p-0.5 text-muted hover:bg-red-500/15 hover:text-red-300"
+                  aria-label="Hapus baris"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </li>
+            ))
+          )}
+        </ul>
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-stretch">
+          <div className="flex min-w-0 flex-1 gap-1.5">
+            <input
+              type="text"
+              inputMode="url"
+              autoComplete="off"
+              value={newUrl}
+              onChange={(e) => setNewUrl(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  add();
+                }
+              }}
+              placeholder="Tempel URL TikTok…"
+              className="min-w-0 flex-1 rounded-lg border border-white/10 bg-black/40 px-2 py-1.5 text-xs text-foreground placeholder:text-muted focus:border-neon-cyan/40 focus:outline-none"
+            />
+            <button
+              type="button"
+              onClick={add}
+              className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1.5 text-[11px] font-semibold text-foreground transition hover:border-neon-cyan/35"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Tambah
+            </button>
+          </div>
+          <button
+            type="button"
+            onClick={addEmptySlot}
+            className="rounded-lg border border-white/10 px-2 py-1.5 text-[11px] font-medium text-muted transition hover:border-white/20 hover:text-foreground"
+          >
+            + Slot kosong
+          </button>
+        </div>
+        <div className="mt-3 flex justify-end gap-2 border-t border-white/[0.06] pt-3">
+          <button
+            type="button"
+            onClick={() => setOpen(false)}
+            disabled={saving}
+            className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-muted transition hover:bg-white/5 disabled:opacity-50"
+          >
+            Batal
+          </button>
+          <button
+            type="button"
+            onClick={() => void save()}
+            disabled={saving}
+            className="rounded-lg border border-neon-cyan/40 bg-neon-cyan/15 px-3 py-1.5 text-xs font-semibold text-neon-cyan transition hover:bg-neon-cyan/25 disabled:opacity-50"
+          >
+            {saving ? "Menyimpan…" : "Simpan"}
+          </button>
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }
 

@@ -24,7 +24,7 @@ import {
   mergeProjects,
   mergeTikTokAccounts,
 } from "@/lib/dashboard/merge-entities";
-import { countVideoUrlLines } from "@/lib/dashboard/video-urls";
+import { parseVideoUrlsFromText } from "@/lib/dashboard/video-urls";
 import {
   buildTargetCompositeKey,
   type Brand,
@@ -69,7 +69,7 @@ interface SubmitVideosModalProps {
   tiktokAccounts: TikTokAccount[];
   tableSegments: TableSegmentOption[];
   onSubmitVideos: (
-    deltas: { targetId: string; addVideos: number }[],
+    deltas: { targetId: string; urls: string[] }[],
   ) => void | Promise<void>;
 }
 
@@ -123,19 +123,19 @@ export function SubmitVideosModal({
   }, [open, selectedTargetIds, selectedMonth, targets, brands, projects]);
 
   const handleSubmit = async () => {
-    const deltas: { targetId: string; addVideos: number }[] = [];
+    const deltas: { targetId: string; urls: string[] }[] = [];
     const problems: string[] = [];
 
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
-      const n = countVideoUrlLines(row.videoUrls);
-      if (n === 0) continue;
+      const urls = parseVideoUrlsFromText(row.videoUrls);
+      if (urls.length === 0) continue;
       const tid = resolveTargetId(row, targets);
       if (!tid) {
         problems.push(`Baris ${i + 1}: target tidak ditemukan — pastikan kombinasi creator, project, objective, TikTok, dan bulan cocok dengan target yang ada.`);
         continue;
       }
-      deltas.push({ targetId: tid, addVideos: n });
+      deltas.push({ targetId: tid, urls });
     }
 
     if (problems.length > 0) {

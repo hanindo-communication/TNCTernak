@@ -11,9 +11,10 @@ import {
   type DashboardBundle,
 } from "@/lib/dashboard/supabase-data";
 import {
-  applySubmittedVideosDelta,
+  appendSubmittedVideoUrls,
   applyTargetRowEdit,
   mergeTargetForms,
+  replaceSubmittedVideoUrls,
   type CreatorTargetRowSave,
 } from "@/lib/dashboard/merge-targets";
 import { createClient } from "@/lib/supabase/client";
@@ -103,6 +104,7 @@ export interface BreakdownRow {
   month: string;
   targetVideos: number;
   submittedVideos: number;
+  submittedVideoUrls: string[];
   expectedRevenue: number;
   actualRevenue: number;
   incentives: number;
@@ -312,6 +314,7 @@ export function useCreatorDashboard() {
           month: t.month,
           targetVideos: t.targetVideos,
           submittedVideos: t.submittedVideos,
+          submittedVideoUrls: t.submittedVideoUrls ?? [],
           expectedRevenue: t.expectedRevenue,
           actualRevenue: t.actualRevenue,
           incentives: t.incentives,
@@ -428,12 +431,15 @@ export function useCreatorDashboard() {
   );
 
   const handleSubmitVideoUrls = useCallback(
-    async (deltas: { targetId: string; addVideos: number }[]) => {
-      const byId = new Map<string, number>();
+    async (deltas: { targetId: string; urls: string[] }[]) => {
+      const byId = new Map<string, string[]>();
       for (const d of deltas) {
-        const add = Math.max(0, Math.floor(Number(d.addVideos)) || 0);
-        if (add <= 0) continue;
-        byId.set(d.targetId, (byId.get(d.targetId) ?? 0) + add);
+        const urls = d.urls
+          .map((s) => String(s).trim())
+          .filter((s) => s.length > 0);
+        if (urls.length === 0) continue;
+        const acc = byId.get(d.targetId) ?? [];
+        byId.set(d.targetId, [...acc, ...urls]);
       }
       if (byId.size === 0) return;
 
@@ -441,9 +447,9 @@ export function useCreatorDashboard() {
       setBundle((prev) => {
         if (!prev) return prev;
         nextTargets = prev.targets.map((t) => {
-          const add = byId.get(t.id);
-          if (add === undefined || add <= 0) return t;
-          return applySubmittedVideosDelta(t, add);
+          const urls = byId.get(t.id);
+          if (!urls || urls.length === 0) return t;
+          return appendSubmittedVideoUrls(t, urls);
         });
         return { ...prev, targets: nextTargets };
       });
@@ -453,6 +459,31 @@ export function useCreatorDashboard() {
       try {
         await persistTargets(supabase, nextTargets);
         toast.success("Video submissions berhasil disimpan");
+        await load();
+      } catch (e) {
+        toast.error(formatSupabaseClientError(e));
+        await load();
+      }
+    },
+    [supabase, load],
+  );
+
+  const handleReplaceTargetVideoLinks = useCallback(
+    async (targetId: string, urls: string[]) => {
+      let nextTargets: CreatorTarget[] | undefined;
+      setBundle((prev) => {
+        if (!prev) return prev;
+        nextTargets = prev.targets.map((t) =>
+          t.id === targetId ? replaceSubmittedVideoUrls(t, urls) : t,
+        );
+        return { ...prev, targets: nextTargets };
+      });
+
+      if (!nextTargets) return;
+
+      try {
+        await persistTargets(supabase, nextTargets);
+        toast.success("Daftar link video disimpan");
         await load();
       } catch (e) {
         toast.error(formatSupabaseClientError(e));
@@ -518,6 +549,7 @@ export function useCreatorDashboard() {
     handleUpdateTargetRows,
     handleDeleteCreatorTargets,
     handleSubmitVideoUrls,
+    handleReplaceTargetVideoLinks,
     loading,
     overviewStats,
     reload: load,

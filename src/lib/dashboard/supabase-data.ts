@@ -14,12 +14,20 @@ import type {
   TikTokAccount,
 } from "@/lib/types";
 import { syncDerivedFinancials } from "@/lib/dashboard/merge-targets";
+import { filterPlausibleVideoUrls } from "@/lib/dashboard/video-urls";
 import { normalizeTargetTableSegmentForKey } from "@/lib/types";
 
 function num(v: unknown): number {
   if (v == null) return 0;
   if (typeof v === "number") return v;
   return Number(v);
+}
+
+function parseSubmittedVideoUrls(raw: unknown): string[] {
+  if (raw == null || !Array.isArray(raw)) return [];
+  return filterPlausibleVideoUrls(
+    raw.map((x) => String(x).trim()),
+  );
 }
 
 function parseTargetTableSegment(raw: string | null | undefined): string {
@@ -250,6 +258,9 @@ export async function fetchDashboardData(
       ),
       targetVideos: num(r.target_videos),
       submittedVideos: num(r.submitted_videos),
+      submittedVideoUrls: parseSubmittedVideoUrls(
+        (r as { submitted_video_urls?: unknown }).submitted_video_urls,
+      ),
       incentivePerVideo: num(r.incentive_per_video),
       basePay: num(r.base_pay),
       expectedRevenue: 0,
@@ -297,6 +308,7 @@ async function persistTargetsOnce(
     table_segment: parseTargetTableSegment(t.tableSegmentId),
     target_videos: t.targetVideos,
     submitted_videos: t.submittedVideos,
+    submitted_video_urls: t.submittedVideoUrls ?? [],
     incentive_per_video: t.incentivePerVideo,
     base_pay: t.basePay,
     expected_revenue: t.expectedRevenue,
@@ -548,6 +560,7 @@ export async function seedDemoData(supabase: SupabaseClient): Promise<void> {
       month,
       target_videos: 24,
       submitted_videos: 22,
+      submitted_video_urls: [],
       incentive_per_video: 120,
       base_pay: defaultBasePayByType.Internal,
       expected_revenue: 4080,
@@ -567,6 +580,7 @@ export async function seedDemoData(supabase: SupabaseClient): Promise<void> {
       month,
       target_videos: 12,
       submitted_videos: 11,
+      submitted_video_urls: [],
       incentive_per_video: 100,
       base_pay: defaultBasePayByType.Internal,
       expected_revenue: 2400,
@@ -586,6 +600,7 @@ export async function seedDemoData(supabase: SupabaseClient): Promise<void> {
       month,
       target_videos: 18,
       submitted_videos: 14,
+      submitted_video_urls: [],
       incentive_per_video: 90,
       base_pay: defaultBasePayByType.External,
       expected_revenue: 2420,
@@ -605,6 +620,7 @@ export async function seedDemoData(supabase: SupabaseClient): Promise<void> {
       month,
       target_videos: 10,
       submitted_videos: 12,
+      submitted_video_urls: [],
       incentive_per_video: 70,
       base_pay: defaultBasePayByType.AssetLoan,
       expected_revenue: 1200,

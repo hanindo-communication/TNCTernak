@@ -75,14 +75,30 @@ export function formatSupabaseClientError(e: unknown): string {
   }
 
   if (
+    lower.includes("submitted_video_urls") &&
+    (lower.includes("does not exist") ||
+      lower.includes("column") ||
+      lower.includes("schema cache"))
+  ) {
+    return [
+      "Kolom creator_targets.submitted_video_urls belum ada (simpan link video / upsert target).",
+      "Supabase → SQL Editor: jalankan supabase/migrations/008_submitted_video_urls.sql, lalu: NOTIFY pgrst, 'reload schema';",
+      "Atau jalan urutan incremental: supabase/manual/apply_migrations_005_to_008.sql (sudah termasuk 008).",
+      "Lokal: npm run db:apply-video-urls (perlu DATABASE_URL di .env.local).",
+      "Detail: cursor-docs/supabase-setup.md.",
+    ].join(" ");
+  }
+
+  if (
     codeU === "PGRST205" ||
     lower.includes("could not find the table") ||
     lower.includes("schema cache")
   ) {
     return [
       "Tabel di Postgres belum dibuat atau cache API belum mengenali skema.",
-      "Buka Supabase → SQL Editor: untuk DB baru, jalankan sekali supabase/manual/apply_all_migrations.sql; atau berurutan 001 → 002 → 003 di supabase/migrations/.",
-      "Jika tabel sudah ada di Table Editor: NOTIFY pgrst, 'reload schema';",
+      "DB baru: jalankan sekali supabase/manual/apply_all_migrations.sql (001–008 + RPC + NOTIFY).",
+      "Sudah punya 001–004: jangan ulang apply_all utuh — jalankan supabase/manual/apply_migrations_005_to_008.sql lalu NOTIFY (sudah di akhir file).",
+      "Hanya cache ketinggal: SQL Editor → NOTIFY pgrst, 'reload schema'; atau tunggu retry otomatis setelah migrasi 004.",
       "Detail: cursor-docs/supabase-setup.md.",
     ].join(" ");
   }

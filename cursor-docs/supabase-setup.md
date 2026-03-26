@@ -19,7 +19,9 @@ Aplikasi memakai **workspace bersama** (`user_id` sentinel). Tanpa migrasi, API 
 
 1. Buka **SQL Editor** di project: [SQL Editor](https://supabase.com/dashboard/project/dnphxqaqlyniobnlicfx/sql).
 
-**Opsi A — database masih kosong (disarankan):** salin **seluruh** isi `supabase/manual/apply_all_migrations.sql`, jalankan sekali (Run). File itu berisi 001 + 002 + 003 + **004** (RPC reload untuk retry di browser) + `NOTIFY pgrst` di akhir.
+**Opsi A — database masih kosong (disarankan):** salin **seluruh** isi `supabase/manual/apply_all_migrations.sql`, jalankan sekali (Run). File itu berisi **001 → 008**: schema dasar, RLS workspace bersama, `brands.table_segment`, RPC `request_postgrest_schema_reload`, **`creator_targets.table_segment`** + unique key, **`creators.hanindo_sharing_percent`**, **`creator_targets.submitted_video_urls`**, lalu **`NOTIFY pgrst`** di akhir.
+
+**Opsi A2 — DB sudah pernah jalan `apply_all_migrations.sql` versi lama (hanya sampai 004):** jangan jalankan utuh file itu lagi (berisiko mengulang langkah destruktif di 002). Gunakan **`supabase/manual/apply_migrations_005_to_008.sql`** sekali di SQL Editor (idempotent), lalu refresh app.
 
 **Opsi B — jalankan per file:**
 
@@ -27,8 +29,14 @@ Aplikasi memakai **workspace bersama** (`user_id` sentinel). Tanpa migrasi, API 
 3. `supabase/migrations/002_shared_workspace_rls.sql` (Run).
 4. `supabase/migrations/003_brands_table_segment.sql` (Run) — **wajib** jika `brands` sudah ada dari migrasi lama **tanpa** kolom `table_segment`. Install baru lewat `001` terbaru sudah menyertakan `table_segment` di `CREATE TABLE brands`; langkah 4 tetap aman (idempotent).
 5. `supabase/migrations/004_postgrest_schema_reload_rpc.sql` (Run) — supaya app bisa memanggil `request_postgrest_schema_reload()` sekali lalu mengulang request saat kena cache PostgREST ketinggalan.
+6. `supabase/migrations/005_creator_targets_table_segment.sql` (Run) — kolom **Table** di target / filter meja.
+7. `supabase/migrations/006_creator_targets_unique_table_segment.sql` (Run) — unik per `(…, month, table_segment)`.
+8. `supabase/migrations/007_creators_hanindo_sharing_percent.sql` (Run) — kolom **[HND]** per creator.
+9. `supabase/migrations/008_submitted_video_urls.sql` (Run) — JSON array URL video per baris target; di akhir file ada `NOTIFY pgrst`.
 
-Tanpa **002**, insert dari app memakai UUID `00000000-0000-0000-0000-000000000001` akan **gagal foreign key** ke `auth.users`. Tanpa **001**, tabel seperti `campaign_objectives` tidak ada. Tanpa **`table_segment` pada `brands`**, **Simpan & sinkron** di Data settings akan gagal saat upsert brand.
+**Lokal via Postgres URI:** `npm run db:apply-video-urls` menambah kolom **008** saja (butuh `DATABASE_URL` di `.env.local`).
+
+Tanpa **002**, insert dari app memakai UUID `00000000-0000-0000-0000-000000000001` akan **gagal foreign key** ke `auth.users`. Tanpa **001**, tabel seperti `campaign_objectives` tidak ada. Tanpa **`table_segment` pada `brands`**, **Simpan & sinkron** di Data settings akan gagal saat upsert brand. Tanpa **005–006**, kolom **`creator_targets.table_segment`** hilang dan upsert target bisa error. Tanpa **008**, kolom **`submitted_video_urls`** hilang dan simpan link video / upsert penuh bisa gagal.
 
 ### Error PGRST205 padahal tabel sudah ada di Table Editor
 

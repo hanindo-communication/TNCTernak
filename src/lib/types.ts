@@ -60,6 +60,8 @@ export interface CreatorTarget {
   tableSegmentId: string;
   targetVideos: number;
   submittedVideos: number;
+  /** URL TikTok per video disimpan; jika kosong, hitungan mengikuti `submittedVideos` saja. */
+  submittedVideoUrls: string[];
   incentivePerVideo: number;
   basePay: number;
   expectedRevenue: number;
