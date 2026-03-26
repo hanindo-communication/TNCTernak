@@ -212,7 +212,7 @@ alter table public.brands
 alter table public.brands
   alter column table_segment set not null;
 
-comment on column public.brands.table_segment is 'Segment chip: tnc (TNC Hanindo) atau folo (FOLO).';
+comment on column public.brands.table_segment is 'Segment chip: tnc (Hanindo PCP) atau folo (FOLO Public).';
 
 -- ----- 004_postgrest_schema_reload_rpc.sql (retry otomatis dari browser) -----
 create or replace function public.request_postgrest_schema_reload()

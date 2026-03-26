@@ -5,6 +5,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   TABLE_CHIP_OPTIONS,
   TABLE_SEGMENT_ALL_ID,
+  TABLE_SEGMENT_FOLO_LABEL,
+  TABLE_SEGMENT_TNC_LABEL,
 } from "@/lib/dashboard/table-segments";
 import type { User } from "@supabase/supabase-js";
 import { CreatorDetailDrawer } from "@/components/dashboard/CreatorDetailDrawer";
@@ -397,10 +399,12 @@ function CreatorDashboardInner({
                   </span>{" "}
                   memuat gabungan target meja{" "}
                   <span className="text-foreground/85">
-                    TNC Hanindo Ternak
+                    {TABLE_SEGMENT_TNC_LABEL}
                   </span>{" "}
                   dan{" "}
-                  <span className="text-foreground/85">FOLO Ternak</span>
+                  <span className="text-foreground/85">
+                    {TABLE_SEGMENT_FOLO_LABEL}
+                  </span>
                   {unassignedTableSegmentTargetCount > 0 ? (
                     <>
                       , plus{" "}

@@ -1,4 +1,4 @@
--- Segment table untuk chip filter (TNC Hanindo vs FOLO), per brand.
+-- Segment table untuk chip filter (Hanindo PCP vs FOLO Public), per brand.
 alter table public.brands
   add column if not exists table_segment text;
 
@@ -16,6 +16,6 @@ alter table public.brands
 alter table public.brands
   alter column table_segment set not null;
 
-comment on column public.brands.table_segment is 'Segment chip: tnc (TNC Hanindo) atau folo (FOLO).';
+comment on column public.brands.table_segment is 'Segment chip: tnc (Hanindo PCP) atau folo (FOLO Public).';
 
 notify pgrst, 'reload schema';

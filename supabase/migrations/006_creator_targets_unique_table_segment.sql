@@ -1,4 +1,4 @@
--- Satu baris per kombinasi leaf + segmen meja (TNC / FOLO / All).
+-- Satu baris per kombinasi leaf + segmen meja (Hanindo PCP / FOLO Public / All).
 -- Tanpa table_segment di unique constraint, upsert hanya bisa menyimpan satu segmen
 -- per (user, creator, project, campaign, tiktok, month) — segmen terakhir dalam batch menang (bug).
 

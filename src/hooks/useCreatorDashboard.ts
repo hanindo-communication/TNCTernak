@@ -91,7 +91,7 @@ export interface BreakdownRow {
   creatorId: string;
   projectId: string;
   projectName: string;
-  /** Segmen meja dari Submit Targets (All / TNC / FOLO). */
+  /** Segmen meja dari Submit Targets (All / Hanindo PCP / FOLO Public; id tnc|folo). */
   tableSegmentLabel: string;
   tableSegmentId: string;
   basePay: number;
@@ -225,7 +225,7 @@ export function useCreatorDashboard() {
     return list;
   }, [monthTargets, filters, projects]);
 
-  /** Baris segmen "All" (belum ditugaskan ke meja TNC/FOLO) — tidak ikut chip gabungan. */
+  /** Baris segmen "All" (belum ditugaskan ke meja Hanindo PCP / FOLO Public) — tidak ikut chip gabungan. */
   const unassignedTableSegmentTargetCount = useMemo(
     () =>
       targetsAfterDashboardFilters.filter(
@@ -478,7 +478,7 @@ export function useCreatorDashboard() {
     const allSegmentRevenue = sumExpectedRevenueForTableSegment(base, "all");
     const targetRevenue =
       tncSegmentRevenue + foloSegmentRevenue + allSegmentRevenue;
-    /** 50% revenue TNC + 54% revenue FOLO (expected per segmen, filter header). */
+    /** 50% revenue Hanindo PCP + 54% revenue FOLO Public (expected per segmen, filter header). */
     const tncRevenue =
       OVERVIEW_TNC_SEGMENT_SHARE * tncSegmentRevenue +
       OVERVIEW_FOLO_SEGMENT_SHARE * foloSegmentRevenue;

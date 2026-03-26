@@ -53,7 +53,7 @@ interface BulkTargetSubmissionsTableProps {
   creators: Creator[];
   projects: Project[];
   tiktokAccounts: TikTokAccount[];
-  /** Sama dengan chip di dashboard: All + TNC + FOLO. */
+  /** Sama dengan chip di dashboard: All Creators + Hanindo PCP + FOLO Public. */
   tableSegments: TableSegmentOption[];
 }
 

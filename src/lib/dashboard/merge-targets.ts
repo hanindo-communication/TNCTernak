@@ -11,7 +11,7 @@ import {
  *
  * - expected revenue = targetVideos × basePay
  * - incentives (total ke creator) = targetVideos × incentivePerVideo
- * - expected profit: basis revenue = expected revenue; segmen meja FOLO memakai
+ * - expected profit: basis revenue = expected revenue; segmen meja FOLO Public memakai
  *   porsi {@link FOLO_TARGET_EXPECTED_PROFIT_REVENUE_SHARE} sebelum kurangi insentif & reimb.
  */
 export function syncDerivedFinancials(t: CreatorTarget): CreatorTarget {

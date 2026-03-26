@@ -1,4 +1,4 @@
--- Meja (TNC / FOLO / All) per baris target — dari Submit Targets, bukan dari brand.
+-- Meja (Hanindo PCP / FOLO Public / All) per baris target — dari Submit Targets, bukan dari brand.
 alter table public.creator_targets
   add column if not exists table_segment text;
 

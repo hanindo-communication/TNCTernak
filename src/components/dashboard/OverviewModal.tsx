@@ -14,17 +14,21 @@ import {
   OVERVIEW_FOLO_SEGMENT_SHARE,
   OVERVIEW_TNC_SEGMENT_SHARE,
 } from "@/lib/dashboard/financial-rules";
+import {
+  TABLE_SEGMENT_FOLO_LABEL,
+  TABLE_SEGMENT_TNC_LABEL,
+} from "@/lib/dashboard/table-segments";
 import { formatCurrency, labelMonth } from "@/lib/utils";
 
 export interface OverviewStats {
   targetRevenue: number;
-  /** 50% × revenue TNC + 54% × revenue FOLO (expected per segmen). */
+  /** 50% × revenue Hanindo PCP + 54% × revenue FOLO Public (expected per segmen). */
   tncRevenue: number;
-  /** 15% × total target revenue (TNC + FOLO + All). */
+  /** 15% × total target revenue (semua segmen meja). */
   hanindoSharingTotal: number;
   tncSegmentRevenue: number;
   foloSegmentRevenue: number;
-  /** Segmen kolom Table = All (belum ditempatkan ke meja TNC/FOLO). */
+  /** Segmen kolom Table = All (belum ditempatkan ke meja Hanindo PCP / FOLO Public). */
   allSegmentRevenue: number;
 }
 
@@ -103,7 +107,8 @@ function OverviewFigures({
           {formatCurrency(trA)}
         </p>
         <p className="mt-2 text-xs text-muted">
-          TNC {formatCurrency(tncA)} + FOLO {formatCurrency(foloA)}
+          {TABLE_SEGMENT_TNC_LABEL} {formatCurrency(tncA)} +{" "}
+          {TABLE_SEGMENT_FOLO_LABEL} {formatCurrency(foloA)}
           {allSeg > 0 ? ` + All Creators ${formatCurrency(allSegA)}` : ""}.
         </p>
       </div>
@@ -115,9 +120,10 @@ function OverviewFigures({
           {formatCurrency(tncRevA)}
         </p>
         <p className="mt-2 text-xs text-muted">
-          {Math.round(OVERVIEW_TNC_SEGMENT_SHARE * 100)}% dari total revenue TNC
-          Hanindo Ternak + {Math.round(OVERVIEW_FOLO_SEGMENT_SHARE * 100)}% dari
-          total revenue FOLO Ternak (
+          {Math.round(OVERVIEW_TNC_SEGMENT_SHARE * 100)}% dari total revenue{" "}
+          {TABLE_SEGMENT_TNC_LABEL} +{" "}
+          {Math.round(OVERVIEW_FOLO_SEGMENT_SHARE * 100)}% dari total revenue{" "}
+          {TABLE_SEGMENT_FOLO_LABEL} (
           {formatCurrency(OVERVIEW_TNC_SEGMENT_SHARE * tnc)} +{" "}
           {formatCurrency(OVERVIEW_FOLO_SEGMENT_SHARE * folo)}).
         </p>
@@ -174,10 +180,12 @@ export function OverviewModal({
             </span>{" "}
             per segmen meja{" "}
             <span className="font-medium text-foreground">
-              TNC Hanindo Ternak
+              {TABLE_SEGMENT_TNC_LABEL}
             </span>{" "}
             dan{" "}
-            <span className="font-medium text-foreground">FOLO Ternak</span>,
+            <span className="font-medium text-foreground">
+              {TABLE_SEGMENT_FOLO_LABEL}
+            </span>,
             mengikuti filter creator &amp; brand di header (bukan quick filter chip
             di tabel).
           </DialogDescription>
