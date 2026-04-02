@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   Loader2,
   LogOut,
+  LineChart,
   Save,
   Settings2,
   Sparkles,
@@ -42,6 +43,7 @@ interface DashboardHeaderProps {
   showSubmitVideos?: boolean;
   onSubmitVideos?: () => void;
   onOverview: () => void;
+  onWeeklyProgress: () => void;
   onPayout: () => void;
   onDataSettings: () => void;
   /** Sinkronkan draft Data settings (lokal) ke Supabase + muat ulang bundle. */
@@ -64,6 +66,7 @@ export function DashboardHeader({
   showSubmitVideos = false,
   onSubmitVideos,
   onOverview,
+  onWeeklyProgress,
   onPayout,
   onDataSettings,
   onSaveProject,
@@ -128,7 +131,7 @@ export function DashboardHeader({
                 type="button"
                 onClick={openMonthPicker}
                 className="flex h-10 items-center gap-2 rounded-lg border border-white/10 bg-white/[0.03] px-3 text-sm font-medium text-foreground tabular-nums neon-border-hover transition hover:border-neon-cyan/35 hover:bg-white/[0.05] focus:outline-none focus:ring-2 focus:ring-neon-cyan/35"
-                title="Pilih bulan & tahun (filter data target)"
+                title="Pilih bulan & tahun (filter data target). Awal buka: bulan berjalan menurut WIB (Asia/Jakarta)."
                 aria-label={`Bulan laporan: ${labelMonth(selectedMonth)}. Buka kalender.`}
               >
                 <CalendarRange className="h-4 w-4 shrink-0 text-neon-cyan" />
@@ -160,6 +163,15 @@ export function DashboardHeader({
             >
               <LayoutDashboard className="h-4 w-4" />
               Overview
+            </button>
+            <button
+              type="button"
+              onClick={onWeeklyProgress}
+              className="action-glow-hover btn-press inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-violet-400/35 bg-violet-500/10 px-4 text-sm font-semibold text-violet-100/95 hover:bg-violet-500/18 focus:outline-none focus:ring-2 focus:ring-violet-400/45"
+              title="Target & actual video per minggu (manual)"
+            >
+              <LineChart className="h-4 w-4" />
+              Weekly Progress
             </button>
             <button
               type="button"
@@ -290,8 +302,8 @@ function CommandPaletteHintStrip() {
         <kbd className="rounded border border-white/20 bg-black/30 px-1.5 py-0.5 font-mono text-[11px] text-foreground/90">
           K
         </kbd>{" "}
-        untuk palet perintah (overview, payout, data settings, submit
-        targets/video).
+        untuk palet perintah (overview, weekly progress, payout, data settings,
+        submit targets/video).
       </p>
       <button
         type="button"

@@ -52,7 +52,11 @@ import {
   type TargetFormRow,
   type TargetStatus,
 } from "@/lib/types";
-import { addMonthsToMonthKey } from "@/lib/utils";
+import {
+  addMonthsToMonthKey,
+  DASHBOARD_REPORT_TIMEZONE,
+  monthKeyNowInTimeZone,
+} from "@/lib/utils";
 
 function labelTableSegment(raw: string): string {
   const seg = normalizeTargetTableSegmentForKey(raw);
@@ -221,7 +225,9 @@ export function useCreatorDashboard(options?: {
   const [loading, setLoading] = useState(true);
   const loadGenerationRef = useRef(0);
 
-  const [selectedMonth, setSelectedMonth] = useState<string>("2026-03");
+  const [selectedMonth, setSelectedMonth] = useState<string>(() =>
+    monthKeyNowInTimeZone(DASHBOARD_REPORT_TIMEZONE),
+  );
   const [filters, setFilters] = useState<DashboardFilters>({
     creatorId: "all",
     brandId: "all",

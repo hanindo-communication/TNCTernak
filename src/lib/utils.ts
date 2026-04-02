@@ -22,6 +22,30 @@ export function monthKeyFromDate(d: Date): string {
   return `${y}-${m}`;
 }
 
+/** Zona waktu untuk default bulan laporan dashboard (kalender sesuai hari ini di Jakarta). */
+export const DASHBOARD_REPORT_TIMEZONE = "Asia/Jakarta";
+
+/**
+ * Bulan kalender saat ini sebagai `YYYY-MM` di zona waktu IANA (mis. Asia/Jakarta).
+ */
+export function monthKeyNowInTimeZone(timeZone: string): string {
+  const now = new Date();
+  try {
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone,
+      year: "numeric",
+      month: "2-digit",
+    }).formatToParts(now);
+    const year = parts.find((p) => p.type === "year")?.value;
+    const month = parts.find((p) => p.type === "month")?.value;
+    if (year && month)
+      return `${year}-${month.padStart(2, "0")}`;
+  } catch {
+    /* invalid timeZone */
+  }
+  return monthKeyFromDate(now);
+}
+
 export function parseMonthKey(key: string): Date {
   const [y, m] = key.split("-").map(Number);
   return new Date(y, m - 1, 1);

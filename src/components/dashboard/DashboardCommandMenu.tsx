@@ -11,6 +11,7 @@ import {
 } from "cmdk";
 import {
   LayoutDashboard,
+  LineChart,
   Settings2,
   Target,
   Upload,
@@ -29,6 +30,7 @@ export interface DashboardCommandMenuProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onOverview: () => void;
+  onWeeklyProgress: () => void;
   onPayout: () => void;
   onDataSettings: () => void;
   onSubmitTargets: () => void;
@@ -43,6 +45,7 @@ export function DashboardCommandMenu({
   open,
   onOpenChange,
   onOverview,
+  onWeeklyProgress,
   onPayout,
   onDataSettings,
   onSubmitTargets,
@@ -87,6 +90,14 @@ export function DashboardCommandMenu({
               >
                 <LayoutDashboard className="h-4 w-4 text-neon-cyan" />
                 Overview
+              </CommandItem>
+              <CommandItem
+                value="weekly progress mingguan target video"
+                onSelect={() => run(onWeeklyProgress)}
+                className="flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2.5 aria-selected:bg-neon-cyan/15"
+              >
+                <LineChart className="h-4 w-4 text-violet-300/95" />
+                Weekly Progress
               </CommandItem>
               <CommandItem
                 value="payout pembayaran bukti"

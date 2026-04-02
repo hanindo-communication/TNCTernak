@@ -105,6 +105,20 @@ export function formatSupabaseClientError(e: unknown): string {
   }
 
   if (
+    lower.includes("weekly_progress") &&
+    (lower.includes("does not exist") ||
+      lower.includes("could not find the table") ||
+      lower.includes("schema cache") ||
+      codeU === "PGRST205")
+  ) {
+    return [
+      "Tabel weekly_progress (simpan Weekly progress ke cloud) belum ada atau belum ter-cache.",
+      "Supabase → SQL Editor: jalankan supabase/migrations/011_weekly_progress.sql atau supabase/manual/apply_migration_011_weekly_progress.sql (sudah berisi NOTIFY reload schema).",
+      "Detail: cursor-docs/supabase-setup.md.",
+    ].join(" ");
+  }
+
+  if (
     codeU === "PGRST205" ||
     lower.includes("could not find the table") ||
     lower.includes("schema cache")

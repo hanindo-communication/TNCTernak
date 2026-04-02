@@ -17,6 +17,7 @@ import { DashboardKpiStrip } from "@/components/dashboard/DashboardKpiStrip";
 import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
 import { DataSettingsModal } from "@/components/dashboard/DataSettingsModal";
 import { OverviewModal } from "@/components/dashboard/OverviewModal";
+import { WeeklyProgressModal } from "@/components/dashboard/WeeklyProgressModal";
 import { PayoutModal } from "@/components/dashboard/PayoutModal";
 import { PerformanceTable } from "@/components/dashboard/PerformanceTable";
 import { QuickFilterChips } from "@/components/dashboard/QuickFilterChips";
@@ -243,6 +244,7 @@ function CreatorDashboardInner({
   const [targetsModalOpen, setTargetsModalOpen] = useState(false);
   const [dataSettingsOpen, setDataSettingsOpen] = useState(false);
   const [overviewOpen, setOverviewOpen] = useState(false);
+  const [weeklyProgressOpen, setWeeklyProgressOpen] = useState(false);
   const [payoutOpen, setPayoutOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerCreatorId, setDrawerCreatorId] = useState<string | null>(null);
@@ -422,6 +424,7 @@ function CreatorDashboardInner({
                   showSubmitVideos={videoSubmitTargetIds.size > 0}
                   onSubmitVideos={() => setVideosModalOpen(true)}
                   onOverview={() => setOverviewOpen(true)}
+                  onWeeklyProgress={() => setWeeklyProgressOpen(true)}
                   onPayout={() => setPayoutOpen(true)}
                   onDataSettings={() => setDataSettingsOpen(true)}
                   onSaveProject={() => void handleSaveProject()}
@@ -528,6 +531,13 @@ function CreatorDashboardInner({
             tableTotalPreviousMonth={totalRowPreviousMonth}
             previousMonthKey={prevMonthKey}
             sparkline={overviewTableSparkline}
+          />
+
+          <WeeklyProgressModal
+            open={weeklyProgressOpen}
+            onOpenChange={setWeeklyProgressOpen}
+            monthKey={selectedMonth}
+            supabase={supabaseForm}
           />
 
           <PayoutModal
@@ -657,6 +667,7 @@ function CreatorDashboardInner({
             open={commandOpen}
             onOpenChange={setCommandOpen}
             onOverview={() => setOverviewOpen(true)}
+            onWeeklyProgress={() => setWeeklyProgressOpen(true)}
             onPayout={() => setPayoutOpen(true)}
             onDataSettings={() => setDataSettingsOpen(true)}
             onSubmitTargets={() => setTargetsModalOpen(true)}

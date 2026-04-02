@@ -755,4 +755,51 @@ export async function fetchWorkspaceActivityLog(
   });
 }
 
+/** Dokumen v2 untuk parser JSON di WeeklyProgressModal (localStorage-compatible). */
+export async function fetchWeeklyProgressDocument(
+  supabase: SupabaseClient,
+  monthKey: string,
+): Promise<string | null> {
+  return withPostgrestSchemaRetry(supabase, async () => {
+    const { data, error } = await supabase
+      .from("weekly_progress")
+      .select("version, rows")
+      .eq("month_key", monthKey)
+      .maybeSingle();
+    if (error) throw error;
+    if (!data || !Array.isArray(data.rows) || data.rows.length === 0) {
+      return null;
+    }
+    return JSON.stringify({
+      version: data.version ?? 2,
+      rows: data.rows,
+    });
+  });
+}
+
+export async function persistWeeklyProgressDocument(
+  supabase: SupabaseClient,
+  monthKey: string,
+  document: { version: number; rows: unknown[] },
+): Promise<void> {
+  return withPostgrestSchemaRetry(supabase, async () => {
+    const { data: auth, error: authErr } = await supabase.auth.getUser();
+    if (authErr) throw authErr;
+    const uid = auth.user?.id;
+    if (!uid) throw new Error("Sesi tidak valid (belum masuk).");
+
+    const { error } = await supabase.from("weekly_progress").upsert(
+      {
+        user_id: uid,
+        month_key: monthKey,
+        version: document.version,
+        rows: document.rows,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "user_id,month_key" },
+    );
+    if (error) throw error;
+  });
+}
+
 export { defaultBasePayByType } from "@/lib/mock-data";
